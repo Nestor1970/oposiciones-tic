@@ -2,8 +2,8 @@ name: Buscador Diario Oposiciones
 
 on:
   schedule:
-    - cron: '0 8 * * *'  # Esto se ejecuta a las 8:00 AM todos los días
-  workflow_dispatch:      # Esto te permite darle a un botón y ejecutarlo cuando quieras
+    - cron: '0 8 * * *'  # Se ejecuta automáticamente a las 8:00 AM
+  workflow_dispatch:      # Te permite ejecutarlo manualmente con el botón "Run workflow"
 
 jobs:
   build:
@@ -24,20 +24,22 @@ jobs:
       - name: Ejecutar el buscador
         run: python buscador.py
 
-      - name: Guardar el Word generado como resultado
+      - name: Guardar el Word generado como copia de seguridad
         uses: actions/upload-artifact@v4
         with:
           name: Informe-Oposiciones
           path: "*.docx"
-      - name: Enviar Informe por Email
+
+      - name: Enviar Informe por Email (Hotmail/Outlook)
+        if: always()  # Intenta enviar el email aunque el buscador no encuentre nada
         uses: dawidd6/action-send-mail@v3
         with:
-          server_address: smtp-mail.outlook.com
+          server_address: smtp.office365.com
           server_port: 587
           username: ${{ secrets.EMAIL_USER }}
           password: ${{ secrets.EMAIL_PASS }}
-          subject: "📂 Oposiciones TIC - 15 días"
+          subject: "📂 Reporte de Oposiciones TIC - 15 días"
           to: ${{ secrets.EMAIL_USER }}
           from: "Buscador Automático"
-          body: "Se adjunta el informe de oposiciones generado hoy automáticamente por GitHub."
+          body: "Hola, se adjunta el informe con las oposiciones encontradas en el BOE, DOG y BOP durante los últimos 15 días."
           attachments: "*.docx"
