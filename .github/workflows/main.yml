@@ -2,8 +2,8 @@ name: Buscador Diario Oposiciones
 
 on:
   schedule:
-    - cron: '0 8 * * *'  # Se ejecuta automáticamente a las 8:00 AM
-  workflow_dispatch:      # Te permite ejecutarlo manualmente con el botón "Run workflow"
+    - cron: '0 8 * * *'  # Se ejecuta a las 8:00 AM cada día
+  workflow_dispatch:      # Permite ejecución manual con el botón "Run workflow"
 
 jobs:
   build:
@@ -31,7 +31,7 @@ jobs:
           path: "*.docx"
 
       - name: Enviar Informe por Email (Hotmail/Outlook)
-        if: always()  # Intenta enviar el email aunque el buscador no encuentre nada
+        if: always()  # Se ejecuta aunque el buscador no encuentre nada nuevo
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.office365.com
@@ -41,5 +41,5 @@ jobs:
           subject: "📂 Reporte de Oposiciones TIC - 15 días"
           to: ${{ secrets.EMAIL_USER }}
           from: "Buscador Automático"
-          body: "Hola, se adjunta el informe con las oposiciones encontradas en el BOE, DOG y BOP durante los últimos 15 días."
+          body: "Se adjunta el informe con las oposiciones encontradas en los últimos 15 días."
           attachments: "*.docx"
