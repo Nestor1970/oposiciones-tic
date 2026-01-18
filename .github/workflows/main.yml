@@ -30,16 +30,17 @@ jobs:
           name: Informe-Oposiciones
           path: "*.docx"
 
-      - name: Enviar Informe por Email (Hotmail/Outlook)
-        if: always()  # Se ejecuta aunque el buscador no encuentre nada nuevo
+      - name: Enviar Informe por Email
+        if: always()
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.office365.com
-          server_port: 587
+          server_port: 465 # Cambiado de 587 a 465
+          secure: true     # Obligamos a usar conexión segura desde el inicio
           username: ${{ secrets.EMAIL_USER }}
           password: ${{ secrets.EMAIL_PASS }}
-          subject: "📂 Reporte de Oposiciones TIC - 15 días"
+          subject: "📂 Oposiciones TIC - Reporte"
           to: ${{ secrets.EMAIL_USER }}
           from: "Buscador Automático"
-          body: "Se adjunta el informe con las oposiciones encontradas en los últimos 15 días."
+          body: "Informe generado por el robot de GitHub."
           attachments: "*.docx"
