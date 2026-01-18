@@ -2,40 +2,45 @@ name: Buscador Diario Oposiciones
 
 on:
   schedule:
-    - cron: '0 8 * * *'
-  workflow_dispatch:
+    - cron: '0 8 * * *'  # Se ejecuta a las 8:00 AM cada día
+  workflow_dispatch:      # Permite ejecución manual con el botón "Run workflow"
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Descargar el código
+      - name: Descargar el código del repositorio
         uses: actions/checkout@v3
 
-      - name: Configurar Python
+      - name: Configurar Python en el servidor
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
 
-      - name: Instalar librerías
-        run: pip install requests beautifulsoup4 python-docx
+      - name: Instalar las librerías necesarias
+        run: |
+          pip install requests beautifulsoup4 python-docx
 
-      - name: Ejecutar buscador
+      - name: Ejecutar el buscador
         run: python buscador.py
 
-      - name: Enviar por Email
-        if: always()
+      - name: Guardar el Word generado como copia de seguridad
+        uses: actions/upload-artifact@v4
+        with:
+          name: Informe-Oposiciones
+          path: "*.docx"
+
+      - name: Enviar Informe por Email (GMAIL)
+        if: always()  # Se ejecuta incluso si no hay plazas nuevas, para confirmar que funciona
         uses: dawidd6/action-send-mail@v3
         with:
-          # Servidor específico de Outlook para evitar timeouts
-          server_address: smtp.office365.com
-          server_port: 587
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
           username: ${{ secrets.EMAIL_USER }}
           password: ${{ secrets.EMAIL_PASS }}
-          subject: "📂 Reporte Oposiciones"
+          subject: "📂 Reporte de Oposiciones TIC - 15 días"
           to: ${{ secrets.EMAIL_USER }}
           from: "Buscador Automático"
-          body: "Informe de oposiciones adjunto."
+          body: "Hola, se adjunta el informe con las oposiciones encontradas hoy por el robot."
           attachments: "*.docx"
-          # Esta línea es clave para el puerto 587
-          secure: false
