@@ -5,14 +5,14 @@ import re
 import os
 from docx import Document
 
-def rastreador_15_dias():
+def rastreador_7_dias():
     # 1. Configuración de rutas y nombres
     directorio = os.path.dirname(os.path.abspath(__file__))
     fecha_hoy_str = datetime.now().strftime("%d_%m_%Y")
     nombre_word = os.path.join(directorio, f"Oposiciones_{fecha_hoy_str}.docx")
     archivo_vistos = os.path.join(directorio, "leidos.txt")
     
-    print(f"\n--- 🛰️  BÚSQUEDA TIC + REDES: 15 DÍAS ---")
+    print(f"\n--- 🛰️  BÚSQUEDA TIC + REDES: 7 DÍAS ---")
 
     # LISTA A: Filtros IT + Redes (Palabra completa)
     terminos_it = [r"\binformática\b", r"\binformático\b", r"\bprogramador\b", r"\bsoftware\b", 
@@ -33,8 +33,8 @@ def rastreador_15_dias():
     anuncios_finales = {} 
     hoy = datetime.now()
 
-    # 2. RANGO DE 15 DÍAS (de i=0 a i=14)
-    for i in range(15):
+    # 2. RANGO DE 7 DÍAS (de i=0 a i=6)
+    for i in range(7):
         fecha = hoy - timedelta(days=i)
         f_str = fecha.strftime("%d/%m/%Y")
         
@@ -98,7 +98,7 @@ def rastreador_15_dias():
         doc.save(nombre_word)
         print(f"\n\n✅ ¡Hecho! Se han guardado {len(anuncios_finales)} resultados en '{os.path.basename(nombre_word)}'.")
     else:
-        print(f"\n\nℹ️ No se han encontrado anuncios nuevos en los últimos 15 días.")
+        print(f"\n\nℹ️ No se han encontrado anuncios nuevos en los últimos 7 días.")
 
 if __name__ == "__main__":
-    rastreador_15_dias()
+    rastreador_7_dias()
