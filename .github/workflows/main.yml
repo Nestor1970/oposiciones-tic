@@ -2,36 +2,29 @@ name: Buscador Diario Oposiciones
 
 on:
   schedule:
-    - cron: '0 8 * * *'  # Se ejecuta a las 8:00 AM cada día
-  workflow_dispatch:      # Permite ejecución manual con el botón "Run workflow"
+    - cron: '0 8 * * 1-6'  # Se ejecuta a las 8:00 AM de Lunes a Sábado (Excluye Domingos)
+  workflow_dispatch:        # Permite ejecución manual
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Descargar el código del repositorio
+      - name: Descargar el código
         uses: actions/checkout@v3
 
-      - name: Configurar Python en el servidor
+      - name: Configurar Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
 
-      - name: Instalar las librerías necesarias
-        run: |
-          pip install requests beautifulsoup4 python-docx
+      - name: Instalar librerías
+        run: pip install requests beautifulsoup4 python-docx
 
-      - name: Ejecutar el buscador
+      - name: Ejecutar buscador
         run: python buscador.py
 
-      - name: Guardar el Word generado como copia de seguridad
-        uses: actions/upload-artifact@v4
-        with:
-          name: Informe-Oposiciones
-          path: "*.docx"
-
-      - name: Enviar Informe por Email (GMAIL)
-        if: always()  # Se ejecuta incluso si no hay plazas nuevas, para confirmar que funciona
+      - name: Enviar por Email (GMAIL)
+        if: always()
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
@@ -39,8 +32,8 @@ jobs:
           secure: true
           username: ${{ secrets.EMAIL_USER }}
           password: ${{ secrets.EMAIL_PASS }}
-          subject: "📂 Reporte de Oposiciones TIC - 15 días"
+          subject: "📂 Reporte Semanal Oposiciones TIC"
           to: ${{ secrets.EMAIL_USER }}
           from: "Buscador Automático"
-          body: "Hola, se adjunta el informe con las oposiciones encontradas hoy por el robot."
+          body: "Se adjunta el informe de los últimos 7 días. (Ejecución automática de Lunes a Sábado)."
           attachments: "*.docx"
