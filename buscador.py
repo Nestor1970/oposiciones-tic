@@ -19,7 +19,7 @@ def rastreador_7_dias():
                    r"\btic\b", r"\bsistemas de información\b", r"\bdixital\b", r"\bredes\b"]
     
     # LISTA B: Convocatorias
-    accion = ["convoca", "proceso selectivo", "oposición", "libre", "quenda", "prazas", "ingreso"]
+    accion = ["convoca", "proceso selectivo", "oposición", "libre", "quenda", "prazas", "ingreso", "Ferrol"]
 
     if not os.path.exists(archivo_vistos):
         open(archivo_vistos, 'w', encoding='utf-8').close()
@@ -34,7 +34,7 @@ def rastreador_7_dias():
     hoy = datetime.now()
 
     # 2. RANGO DE 7 DÍAS (de i=0 a i=6)
-    for i in range(7):
+    for i in range(15):
         fecha = hoy - timedelta(days=i)
         f_str = fecha.strftime("%d/%m/%Y")
         
@@ -102,3 +102,4 @@ def rastreador_7_dias():
 
 if __name__ == "__main__":
     rastreador_7_dias()
+
