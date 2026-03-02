@@ -16,7 +16,7 @@ def rastreador_7_dias():
 
     # LISTA A: Filtros IT + Redes (Palabra completa)
     terminos_it = [r"\binformática\b", r"\binformático\b", r"\bprogramador\b", r"\bsoftware\b", 
-                   r"\btic\b", r"\bsistemas de información\b", r"\bdixital\b", r"\bredes\b"]
+                   r"\btic\b", r"\bsistemas de información\b", r"\bdixital\b",r"\bdigital\b", r"\bredes\b"]
     
     # LISTA B: Convocatorias
     accion = ["convoca", "proceso selectivo", "oposición", "libre", "quenda", "prazas", "ingreso", "Ferrol"]
@@ -102,4 +102,5 @@ def rastreador_7_dias():
 
 if __name__ == "__main__":
     rastreador_7_dias()
+
 
