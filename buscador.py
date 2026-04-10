@@ -33,7 +33,7 @@ def rastreador_7_dias():
     anuncios_finales = {} 
     hoy = datetime.now()
 
-    # 2. RANGO DE 7 DÍAS (de i=0 a i=6)
+    # 2. RANGO DE 7 DÍAS (de i=0 a i=5)
     for i in range(15):
         fecha = hoy - timedelta(days=i)
         f_str = fecha.strftime("%d/%m/%Y")
