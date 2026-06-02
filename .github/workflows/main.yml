@@ -2,7 +2,7 @@ name: Buscador Diario Oposiciones
 
 on:
   schedule:
-    - cron: '0 8 * * 1-6'  # Se ejecuta a las 8:00 AM de Lunes a Sábado (Excluye Domingos)
+    - cron: '0 7 * * 1-6'  # Se ejecuta a las 7:00 AM de Lunes a Sábado (Excluye Domingos)
   workflow_dispatch:        # Permite ejecución manual
 
 jobs:
