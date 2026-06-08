@@ -10,22 +10,15 @@ def rastreador_7_dias():
     directorio = os.path.dirname(os.path.abspath(__file__))
     fecha_hoy_str = datetime.now().strftime("%d_%m_%Y")
     nombre_word = os.path.join(directorio, f"Oposiciones_{fecha_hoy_str}.docx")
-    archivo_vistos = os.path.join(directorio, "leidos.txt")
     
-    print(f"\n--- 🛰️  BÚSQUEDA TIC + REDES: 7 DÍAS ---")
+    print(f"\n--- 🛰️  BÚSQUEDA TIC + REDES: ÚLTIMOS 7 DÍAS ---")
 
     # LISTA A: Filtros IT + Redes (Palabra completa)
     terminos_it = [r"\binformática\b", r"\binformático\b", r"\bprogramador\b", r"\bsoftware\b", 
-                   r"\btic\b", r"\bsistemas de información\b", r"\bdixital\b",r"\bdigital\b", r"\bredes\b"]
+                   r"\btic\b", r"\bsistemas de información\b", r"\bdixital\b", r"\bdigital\b", r"\bredes\b"]
     
     # LISTA B: Convocatorias
-    accion = ["convoca", "proceso selectivo", "oposición", "libre", "quenda", "prazas", "ingreso", "Ferrol"]
-
-    if not os.path.exists(archivo_vistos):
-        open(archivo_vistos, 'w', encoding='utf-8').close()
-    
-    with open(archivo_vistos, 'r', encoding='utf-8') as f:
-        vistos_historicos = set(line.strip() for line in f)
+    accion = ["convoca", "proceso selectivo", "oposición", "libre", "quenda", "prazas", "ingreso", "ferrol"]
 
     doc = Document()
     doc.add_heading(f'Oposiciones TIC y Redes - {datetime.now().strftime("%d/%m/%Y")}', 0)
@@ -33,8 +26,8 @@ def rastreador_7_dias():
     anuncios_finales = {} 
     hoy = datetime.now()
 
-    # 2. RANGO DE 7 DÍAS (de i=0 a i=5)
-    for i in range(15):
+    # 2. RANGO DE 7 DÍAS CORREGIDO (Cambia a 15 si deseas ampliar el reporte)
+    for i in range(7):
         fecha = hoy - timedelta(days=i)
         f_str = fecha.strftime("%d/%m/%Y")
         
@@ -51,8 +44,9 @@ def rastreador_7_dias():
                 res = requests.get(url, timeout=10, headers={'User-Agent': 'Mozilla/5.0'})
                 if res.status_code != 200: continue
 
-                sopa = BeautifulSoup(res.text, 'html.parser')
-                for item in sopa.find_all(['li', 'p']):
+                # Cambiado a lxml para evitar saltos en estructuras complejas
+                sopa = BeautifulSoup(res.text, 'lxml')
+                for item in sopa.find_all(['li', 'p', 'tr', 'td']):
                     texto = item.get_text(separator=" ").strip()
                     if len(texto) < 50: continue
                     
@@ -70,37 +64,34 @@ def rastreador_7_dias():
                         if es_concurso_interno and not es_libre:
                             continue
 
-                        # Huella para evitar duplicados técnicos
+                        # Huella para evitar duplicados del mismo día
                         base_titulo = re.split(r'pdf|págs|otros formatos', txt_min, flags=re.IGNORECASE)[0]
                         huella = re.sub(r'\W+', '', base_titulo)[:200]
 
-                        if huella not in vistos_historicos:
-                            tiene_pdf = "pdf" in txt_min
-                            # Si ya existe esta huella pero esta línea tiene el PDF, la guardamos
-                            if huella not in anuncios_finales or (tiene_pdf and "pdf" not in anuncios_finales[huella]['texto'].lower()):
-                                anuncios_finales[huella] = {
-                                    'texto': texto, 'fuente': fuente, 'fecha': f_str, 'url': url
-                                }
-            except: continue
+                        # Quitamos la dependencia de leidos.txt para que se mantengan durante los 7 días en el reporte
+                        tiene_pdf = "pdf" in txt_min
+                        if huella not in anuncios_finales or (tiene_pdf and "pdf" not in anuncios_finales[huella]['texto'].lower()):
+                            anuncios_finales[huella] = {
+                                'texto': texto, 'fuente': fuente, 'fecha': f_str, 'url': url
+                            }
+            except: 
+                continue
 
-    # 3. Escritura del archivo
-    for huella, d in anuncios_finales.items():
-        p = doc.add_paragraph()
-        p.add_run(f"📌 {d['fuente']} - {d['fecha']}").bold = True
-        doc.add_paragraph(d['texto'])
-        doc.add_paragraph(f"🔗 {d['url']}")
-        doc.add_paragraph("-" * 30)
-        
-        with open(archivo_vistos, 'a', encoding='utf-8') as f:
-            f.write(huella + "\n")
-
+    # 3. Escritura del archivo Word (Garantiza que siempre guarde aunque esté vacío, evitando correos rotos)
     if anuncios_finales:
-        doc.save(nombre_word)
-        print(f"\n\n✅ ¡Hecho! Se han guardado {len(anuncios_finales)} resultados en '{os.path.basename(nombre_word)}'.")
+        for huella, d in anuncios_finales.items():
+            p = doc.add_paragraph()
+            p.add_run(f"📌 {d['fuente']} - {d['fecha']}").bold = True
+            doc.add_paragraph(d['texto'])
+            doc.add_paragraph(f"🔗 {d['url']}")
+            doc.add_paragraph("-" * 30)
+        print(f"\n\n✅ ¡Hecho! {len(anuncios_finales)} resultados agregados al informe semanal.")
     else:
-        print(f"\n\nℹ️ No se han encontrado anuncios nuevos en los últimos 7 días.")
+        doc.add_paragraph("\nℹ️ No se han encontrado anuncios en la última semana bajo los criterios establecidos.")
+        print(f"\n\nℹ️ Generando informe vacío preventivo.")
+
+    # Salvamos SIEMPRE el documento para asegurar el adjunto en el flujo automatizado
+    doc.save(nombre_word)
 
 if __name__ == "__main__":
     rastreador_7_dias()
-
-
