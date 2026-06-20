@@ -35,21 +35,13 @@ def rastreador_15_dias_definitivo():
     sesion.headers.update(cabeceras)
 
     # Bucle de 15 días
-    for i in range(15):
+    for i in range(32):
         fecha = hoy - timedelta(days=i)
         f_str = fecha.strftime("%d/%m/%Y")
         dia_semana = fecha.weekday() # 0=Lunes, 5=Sábado, 6=Domingo
         
         urls = {}
         
-        # 1. BOE: No se publica los domingos (6)
-        if dia_semana != 6:
-            urls["BOE"] = fecha.strftime("https://www.boe.es/boe/dias/%Y/%m/%d/")
-            
-        # 2. BOP Coruña: No se publica sábados (5) ni domingos (6)
-        if dia_semana not in [5, 6]:
-            urls["BOP Coruña"] = f"https://bop.dacoruna.gal/bopportal/cambioBoletin.do?fechaInput={f_str}"
-            
         # 3. DOG: Diario
         urls["DOG"] = f"https://www.xunta.gal/diario-oficial-galicia/mostrarContenido.do?ruta=/{fecha.year}/{fecha.strftime('%Y%m%d')}/Secciones3_gl.html"
         
