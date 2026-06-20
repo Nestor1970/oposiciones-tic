@@ -2,16 +2,16 @@ name: Buscador Diario Oposiciones TIC
 
 on:
   schedule:
-    - cron: '17 7 * * 1-6' # Tu minuto mágico
+    - cron: '17 7 * * 1-6'
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     
-    # FORZAMOS AL SERVIDOR A ESTABILIZAR EL ENTORNO SEGÚN EL COMUNICADO
+    # Parche oficial para el fallo de Node 24 del 16 de junio
     env:
-      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
     steps:
       - name: Descargar codigo
@@ -41,5 +41,5 @@ jobs:
           subject: "💻 Alerta Oposiciones TIC"
           to: ${{ secrets.EMAIL_USER }}
           from: "Buscador Oposiciones"
-          body: "Se adjunta el boletín detectado en los últimos 7 días."
+          body: "Se adjunta el boletín detectado en los últimos días."
           attachments: "*.docx"
