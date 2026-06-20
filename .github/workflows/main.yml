@@ -8,7 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     # Parche oficial para el fallo de Node 24 del 16 de junio
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
@@ -28,6 +28,9 @@ jobs:
           pip install requests beautifulsoup4 python-docx lxml
 
       - name: Ejecutar buscador TIC
+        env:
+          # Aquí le pasamos la llave maestra al script de Python
+          SCRAPER_API_KEY: ${{ secrets.SCRAPER_API_KEY }}
         run: python buscador.py
 
       - name: Enviar Email
