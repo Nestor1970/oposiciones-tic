@@ -2,7 +2,7 @@ name: Buscador Diario Oposiciones TIC
 
 on:
   schedule:
-    - cron: '17 7 * * 1-6' # Configurado a las 7:17 AM UTC (Evita horas punta)
+    - cron: '17 7 * * 1-6' # Mantenemos tu minuto mágico a las 7:17 AM UTC
   workflow_dispatch:
 
 jobs:
@@ -10,12 +10,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Descargar codigo
-        uses: actions/checkout@v4 # Actualizado a la versión 4
+        uses: actions/checkout@v4 # Versión optimizada
 
       - name: Configurar Python
-        uses: actions/setup-python@v5 # Actualizado a la versión 5
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.11' # Subimos a una versión de Python más rápida y moderna
+          python-version: '3.11'
 
       - name: Instalar librerias
         run: |
@@ -25,8 +25,8 @@ jobs:
       - name: Ejecutar buscador TIC
         run: python buscador.py
 
-      - name: Enviar Email (Conector moderno)
-        uses: dawidd6/action-send-mail@v4 # Actualizado a la versión 4
+      - name: Enviar Email (Última versión compatible)
+        uses: dawidd6/action-send-mail@v4.1.0 # Forzamos la subversión exacta que corrige Node.js
         with:
           server_address: smtp.gmail.com
           server_port: 465
@@ -37,4 +37,4 @@ jobs:
           to: ${{ secrets.EMAIL_USER }}
           from: "Buscador Oposiciones"
           body: "Se adjunta el boletín detectado en los últimos 7 días."
-          attachments: "*.docx" # Asegura capturar el archivo generado por el script
+          attachments: "*.docx"
