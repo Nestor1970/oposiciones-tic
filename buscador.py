@@ -46,16 +46,16 @@ def rastreador_15_dias_proxy():
         print(f"🔎 Analizando {f_str}...", end="\r")
         
         for fuente, url in urls.items():
-            try:
-                # 🚀 LÓGICA DE PROXY SOLO PARA EL DOG
-                if fuente == "DOG" and api_key_proxy:
+           try:
+                # 🚀 LÓGICA DE PROXY PARA DOG Y BOE (El BOP va normal)
+                if fuente in ["DOG", "BOE"] and api_key_proxy:
                     # Construimos la URL de ScraperAPI
                     url_codificada = quote(url, safe='')
                     url_peticion = f"http://api.scraperapi.com?api_key={api_key_proxy}&url={url_codificada}&render=false"
                     # Subimos el timeout porque los proxies tardan unos segundos más en enrutar
                     res = requests.get(url_peticion, timeout=45) 
                 else:
-                    # BOE y BOP siguen yendo por ruta normal
+                    # BOP Coruña sigue yendo por ruta normal
                     res = sesion.get(url, timeout=20)
                 
                 if res.status_code != 200: 
