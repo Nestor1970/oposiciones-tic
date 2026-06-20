@@ -4,9 +4,9 @@ from datetime import datetime, timedelta
 import re
 import os
 from docx import Document
-from urllib.parse import quote
+from urllib.parse import quote, urljoin
 
-def rastreador_7_dias_produccion():
+def rastreador_7_dias_enlaces_directos():
     directorio = os.path.dirname(os.path.abspath(__file__))
     
     # Forzamos hora de España para que los saltos de día sean exactos
@@ -16,11 +16,16 @@ def rastreador_7_dias_produccion():
     
     api_key_proxy = os.environ.get("SCRAPER_API_KEY")
     
-    print(f"\n--- 🛰️  BÚSQUEDA TIC + REDES (Rutina 7 días) ---")
+    print(f"\n--- 🛰️  BÚSQUEDA TIC + REDES (Modo Enlaces Directos - 7 días) ---")
+    
+    # Términos tecnológicos habituales
     terminos_it = [r"\binformática\b", r"\binformático\b", r"\bprogramador\b", r"\bsoftware\b", 
                    r"\btic\b", r"\bsistemas de información\b", r"\bdixital\b", r"\bdigital\b", r"\bredes\b"]
-    accion = ["convoca", "proceso selectivo", "oposición", "libre", "quenda", "prazas", "ingreso"]
     
+    # 🔥 AMPLIADO: Palabras clave de acción que capturan convocatorias generales o extractos escuetos
+    accion = ["convoca", "proceso selectivo", "oposición", "libre", "quenda", "prazas", "ingreso", "ferrol",
+              "estabilización", "oferta de empleo", "oep", "oferta de emprego", "personal laboral", "funcionario"]
+              
     doc = Document()
     doc.add_heading(f'Oposiciones TIC y Redes - {hoy.strftime("%d/%m/%Y")}', 0)
     anuncios_finales = {} 
@@ -31,20 +36,16 @@ def rastreador_7_dias_produccion():
     }
     sesion.headers.update(cabeceras)
 
-    # 🔄 Fijado a 7 días para la rutina diaria automatizada
     for i in range(7):
         fecha = hoy - timedelta(days=i)
         f_str = fecha.strftime("%d/%m/%Y")
         dia_semana = fecha.weekday() 
         
         urls = {}
-        
         if dia_semana != 6:
             urls["BOE"] = fecha.strftime("https://www.boe.es/boe/dias/%Y/%m/%d/")
-            
         if dia_semana not in [5, 6]:
             urls["BOP Coruña"] = f"https://bop.dacoruna.gal/bopportal/cambioBoletin.do?fechaInput={f_str}"
-            
         urls["DOG"] = f"https://www.xunta.gal/diario-oficial-galicia/mostrarContenido.do?ruta=/{fecha.year}/{fecha.strftime('%Y%m%d')}/Secciones3_gl.html"
         
         print(f"🔎 Analizando {f_str}...", end="\r")
@@ -59,15 +60,51 @@ def rastreador_7_dias_produccion():
                     res = sesion.get(url, timeout=20)
                 
                 if res.status_code != 200: 
-                    print(f"\n   ⚠️ Alerta HTTP {res.status_code} en {fuente} el día {f_str}")
                     continue
                     
                 sopa = BeautifulSoup(res.text, 'html.parser')
-                for item in sopa.find_all(['li', 'p']):
-                    texto = item.get_text(separator=" ").strip()
-                    if len(texto) < 50: continue
+                
+                # 🛠️ NUEVA ESTRUCTURA DE EXTRACCIÓN POR FUENTE (Para sacar el link específico)
+                elementos_analizar = []
+                
+                if fuente == "BOE":
+                    # En el BOE, cada anuncio está dentro de un elemento 'li' con clase 'dispo'
+                    for li in sopa.find_all('li', class_='dispo'):
+                        link_tag = li.find('a', href=True)
+                        if link_tag:
+                            url_directa = urljoin("https://www.boe.es", link_tag['href'])
+                            elementos_analizar.append((li.get_text(separator=" "), url_directa))
+                            
+                elif fuente == "DOG":
+                    # En el DOG, los anuncios están en tablas o listas con enlaces de clase 'idAnuncio' o dentro de Secciones
+                    for p_tag in sopa.find_all(['p', 'span']):
+                        link_tag = p_tag.find('a', href=True) if hasattr(p_tag, 'find') else None
+                        if not link_tag and p_tag.parent and p_tag.parent.name == 'a':
+                            link_tag = p_tag.parent
+                        if link_tag:
+                            url_directa = urljoin("https://www.xunta.gal", link_tag['href'])
+                            elementos_analizar.append((p_tag.get_text(separator=" "), url_directa))
+                            
+                elif fuente == "BOP Coruña":
+                    # En el BOP, los anuncios suelen estar en bloques de texto con enlaces de descarga directa
+                    for item in sopa.find_all(['li', 'p', 'tr']):
+                        link_tag = item.find('a', href=True)
+                        if link_tag:
+                            url_directa = urljoin("https://bop.dacoruna.gal", link_tag['href'])
+                            elementos_analizar.append((item.get_text(separator=" "), url_directa))
+
+                # Si la extracción específica no devolvió nada, usamos el fallback clásico (por si acaso cambian el HTML)
+                if not elementos_analizar:
+                    for item in sopa.find_all(['li', 'p']):
+                        texto = item.get_text(separator=" ").strip()
+                        elementos_analizar.append((texto, url))
+
+                # Procesamos y filtramos los textos obtenidos
+                for texto, url_final_anuncio in elementos_analizar:
+                    texto_limpio = texto.strip()
+                    if len(texto_limpio) < 50: continue
                     
-                    txt_min = texto.lower()
+                    txt_min = texto_limpio.lower()
                     tiene_it_redes = any(re.search(t, txt_min) for t in terminos_it)
                     tiene_accion = any(a in txt_min for a in accion)
                     
@@ -84,7 +121,7 @@ def rastreador_7_dias_produccion():
                         
                         if huella not in anuncios_finales or (tiene_pdf and "pdf" not in anuncios_finales[huella]['texto'].lower()):
                             anuncios_finales[huella] = {
-                                'texto': texto, 'fuente': fuente, 'fecha': f_str, 'url': url
+                                'texto': texto_limpio, 'fuente': fuente, 'fecha': f_str, 'url': url_final_anuncio
                             }
             except Exception as e:
                 print(f"\n   ❌ Error en {fuente} ({f_str}): {e}")
@@ -95,7 +132,7 @@ def rastreador_7_dias_produccion():
             p = doc.add_paragraph()
             p.add_run(f"📌 {d['fuente']} - {d['fecha']}").bold = True
             doc.add_paragraph(d['texto'])
-            doc.add_paragraph(f"🔗 {d['url']}")
+            doc.add_paragraph(f"🔗 Enlace directo: {d['url']}")
             doc.add_paragraph("-" * 30)
         print(f"\n\n✅ ¡Hecho! {len(anuncios_finales)} resultados agregados al informe.")
     else:
@@ -105,4 +142,4 @@ def rastreador_7_dias_produccion():
     doc.save(nombre_word)
 
 if __name__ == "__main__":
-    rastreador_7_dias_produccion()
+    rastreador_7_dias_enlaces_directos()
