@@ -2,12 +2,17 @@ name: Buscador Diario Oposiciones TIC
 
 on:
   schedule:
-    - cron: '17 7 * * 1-6' # Tu hora a las 7:17 AM UTC
+    - cron: '17 7 * * 1-6' # Tu minuto mágico
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    
+    # FORZAMOS AL SERVIDOR A ESTABILIZAR EL ENTORNO SEGÚN EL COMUNICADO
+    env:
+      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
+
     steps:
       - name: Descargar codigo
         uses: actions/checkout@v4
