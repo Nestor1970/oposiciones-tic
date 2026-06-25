@@ -23,7 +23,7 @@ def rastreador_7_dias_enlaces_directos():
                    r"\btic\b", r"\bsistemas de información\b", r"\bdixital\b", r"\bdigital\b", r"\bredes\b"]
     
     # 🔥 AMPLIADO: Palabras clave de acción que capturan convocatorias generales o extractos escuetos
-    accion = ["convoca", "proceso selectivo", "oposición", "libre", "quenda", "prazas", "ingreso", "ferrol",
+    accion = ["convoca", "proceso selectivo", "oposición", "libre", "quenda", "prazas", "ingreso", "estatutario",
               "estabilización", "oferta de empleo", "oep", "oferta de emprego", "personal laboral", "funcionario"]
               
     doc = Document()
