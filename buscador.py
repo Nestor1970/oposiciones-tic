@@ -6,29 +6,35 @@ import os
 from docx import Document
 from urllib.parse import quote, urljoin
 
-def rastreador_7_dias_enlaces_directos():
+def rastreador_7_dias_dos_listas():
     directorio = os.path.dirname(os.path.abspath(__file__))
     
-    # Forzamos hora de España para que los saltos de día sean exactos
     hoy = datetime.utcnow() + timedelta(hours=2) 
     fecha_hoy_str = hoy.strftime("%d_%m_%Y")
     nombre_word = os.path.join(directorio, f"Oposiciones_{fecha_hoy_str}.docx")
     
     api_key_proxy = os.environ.get("SCRAPER_API_KEY")
     
-    print(f"\n--- 🛰️  BÚSQUEDA TIC + REDES (Modo Enlaces Directos - 7 días) ---")
+    print(f"\n--- 🛰️  BÚSQUEDA TIC + REDES (Modo 2 Listas Inteligentes) ---")
     
-    # Términos tecnológicos habituales
+    # 🎯 LISTA 1: Términos 100% tecnológicos
     terminos_it = [r"\binformática\b", r"\binformático\b", r"\bprogramador\b", r"\bsoftware\b", 
                    r"\btic\b", r"\bsistemas de información\b", r"\bdixital\b", r"\bdigital\b", r"\bredes\b"]
+                   
+    # ⚠️ LISTA 2: Términos genéricos que suelen esconder plazas
+    terminos_genericos = [r"\bcuerpos y escalas\b", r"\bcorpos e escalas\b", r"\boferta de empleo público\b", 
+                          r"\boferta de emprego público\b", r"\boep\b"]
     
-    # 🔥 AMPLIADO: Palabras clave de acción que capturan convocatorias generales o extractos escuetos
-    accion = ["convoca", "proceso selectivo", "oposición", "libre", "quenda", "prazas", "ingreso", "estatutario",
+    # Términos de acción (obligatorios para ambas listas)
+    accion = ["convoca", "proceso selectivo", "oposición", "libre", "quenda", "prazas", "ingreso", "ferrol",
               "estabilización", "oferta de empleo", "oep", "oferta de emprego", "personal laboral", "funcionario"]
               
     doc = Document()
-    doc.add_heading(f'Oposiciones TIC y Redes - {hoy.strftime("%d/%m/%Y")}', 0)
-    anuncios_finales = {} 
+    doc.add_heading(f'Boletín de Oposiciones - {hoy.strftime("%d/%m/%Y")}', 0)
+    
+    # Separamos en dos diccionarios distintos
+    anuncios_tic_directos = {} 
+    anuncios_posibles = {}
     
     sesion = requests.Session()
     cabeceras = {
@@ -36,6 +42,7 @@ def rastreador_7_dias_enlaces_directos():
     }
     sesion.headers.update(cabeceras)
 
+    # El bucle recorre de hoy (i=0) hacia atrás (i=6), lo que garantiza el orden más nuevo -> más antiguo
     for i in range(7):
         fecha = hoy - timedelta(days=i)
         f_str = fecha.strftime("%d/%m/%Y")
@@ -63,20 +70,16 @@ def rastreador_7_dias_enlaces_directos():
                     continue
                     
                 sopa = BeautifulSoup(res.text, 'html.parser')
-                
-                # 🛠️ NUEVA ESTRUCTURA DE EXTRACCIÓN POR FUENTE (Para sacar el link específico)
                 elementos_analizar = []
                 
+                # Extracción de enlaces directos (igual que en la versión anterior)
                 if fuente == "BOE":
-                    # En el BOE, cada anuncio está dentro de un elemento 'li' con clase 'dispo'
                     for li in sopa.find_all('li', class_='dispo'):
                         link_tag = li.find('a', href=True)
                         if link_tag:
                             url_directa = urljoin("https://www.boe.es", link_tag['href'])
                             elementos_analizar.append((li.get_text(separator=" "), url_directa))
-                            
                 elif fuente == "DOG":
-                    # En el DOG, los anuncios están en tablas o listas con enlaces de clase 'idAnuncio' o dentro de Secciones
                     for p_tag in sopa.find_all(['p', 'span']):
                         link_tag = p_tag.find('a', href=True) if hasattr(p_tag, 'find') else None
                         if not link_tag and p_tag.parent and p_tag.parent.name == 'a':
@@ -84,31 +87,32 @@ def rastreador_7_dias_enlaces_directos():
                         if link_tag:
                             url_directa = urljoin("https://www.xunta.gal", link_tag['href'])
                             elementos_analizar.append((p_tag.get_text(separator=" "), url_directa))
-                            
                 elif fuente == "BOP Coruña":
-                    # En el BOP, los anuncios suelen estar en bloques de texto con enlaces de descarga directa
                     for item in sopa.find_all(['li', 'p', 'tr']):
                         link_tag = item.find('a', href=True)
                         if link_tag:
                             url_directa = urljoin("https://bop.dacoruna.gal", link_tag['href'])
                             elementos_analizar.append((item.get_text(separator=" "), url_directa))
 
-                # Si la extracción específica no devolvió nada, usamos el fallback clásico (por si acaso cambian el HTML)
                 if not elementos_analizar:
                     for item in sopa.find_all(['li', 'p']):
                         texto = item.get_text(separator=" ").strip()
                         elementos_analizar.append((texto, url))
 
-                # Procesamos y filtramos los textos obtenidos
+                # PROCESAMIENTO Y CLASIFICACIÓN EN 1 SOLA PASADA
                 for texto, url_final_anuncio in elementos_analizar:
                     texto_limpio = texto.strip()
                     if len(texto_limpio) < 50: continue
                     
                     txt_min = texto_limpio.lower()
-                    tiene_it_redes = any(re.search(t, txt_min) for t in terminos_it)
+                    
+                    # Evaluamos a qué grupo pertenece
+                    tiene_it = any(re.search(t, txt_min) for t in terminos_it)
+                    tiene_generico = any(re.search(g, txt_min) for g in terminos_genericos)
                     tiene_accion = any(a in txt_min for a in accion)
                     
-                    if tiene_it_redes and tiene_accion:
+                    # Si cumple con alguna de las dos casuísticas y es una acción válida...
+                    if (tiene_it or tiene_generico) and tiene_accion:
                         es_concurso_interno = any(c in txt_min for c in ["concurso específico", "concurso de traslados", "provisión de puestos"])
                         es_libre = any(l in txt_min for l in ["libre", "oposición", "quenda"])
                         
@@ -119,27 +123,51 @@ def rastreador_7_dias_enlaces_directos():
                         huella = re.sub(r'\W+', '', base_titulo)[:200]
                         tiene_pdf = "pdf" in txt_min
                         
-                        if huella not in anuncios_finales or (tiene_pdf and "pdf" not in anuncios_finales[huella]['texto'].lower()):
-                            anuncios_finales[huella] = {
-                                'texto': texto_limpio, 'fuente': fuente, 'fecha': f_str, 'url': url_final_anuncio
-                            }
+                        datos_anuncio = {
+                            'texto': texto_limpio, 'fuente': fuente, 'fecha': f_str, 'url': url_final_anuncio
+                        }
+                        
+                        # 🛤️ BIFURCACIÓN INTELIGENTE (Prioridad a TIC)
+                        if tiene_it:
+                            if huella not in anuncios_tic_directos or (tiene_pdf and "pdf" not in anuncios_tic_directos[huella]['texto'].lower()):
+                                anuncios_tic_directos[huella] = datos_anuncio
+                        elif tiene_generico:
+                            if huella not in anuncios_posibles or (tiene_pdf and "pdf" not in anuncios_posibles[huella]['texto'].lower()):
+                                anuncios_posibles[huella] = datos_anuncio
+                                
             except Exception as e:
-                print(f"\n   ❌ Error en {fuente} ({f_str}): {e}")
                 continue
 
-    if anuncios_finales:
-        for huella, d in anuncios_finales.items():
+    # --- GENERACIÓN DEL DOCUMENTO WORD ---
+    
+    # SECCIÓN 1: Anuncios TIC Directos
+    doc.add_heading('🎯 Búsqueda Directa (Puestos TIC)', level=1)
+    if anuncios_tic_directos:
+        for huella, d in anuncios_tic_directos.items():
             p = doc.add_paragraph()
             p.add_run(f"📌 {d['fuente']} - {d['fecha']}").bold = True
             doc.add_paragraph(d['texto'])
             doc.add_paragraph(f"🔗 Enlace directo: {d['url']}")
             doc.add_paragraph("-" * 30)
-        print(f"\n\n✅ ¡Hecho! {len(anuncios_finales)} resultados agregados al informe.")
     else:
-        doc.add_paragraph("\nℹ️ No se han encontrado anuncios en el rango de días revisado.")
-        print(f"\n\nℹ️ Generando informe vacío.")
-        
+        doc.add_paragraph("No hay anuncios TIC directos en estos días.")
+
+    # SECCIÓN 2: Posibles (Convocatorias Generales)
+    doc.add_heading('⚠️ Posibles Oposiciones (Convocatorias Generales)', level=1)
+    if anuncios_posibles:
+        doc.add_paragraph("Estos anuncios no mencionan puestos TIC explícitamente, pero son convocatorias abiertas donde podrían esconderse plazas. Échales un ojo:")
+        for huella, d in anuncios_posibles.items():
+            p = doc.add_paragraph()
+            p.add_run(f"📌 {d['fuente']} - {d['fecha']}").bold = True
+            doc.add_paragraph(d['texto'])
+            doc.add_paragraph(f"🔗 Enlace directo: {d['url']}")
+            doc.add_paragraph("-" * 30)
+    else:
+        doc.add_paragraph("No se han detectado convocatorias generales en estos días.")
+
+    # Guardado final
+    print(f"\n\n✅ ¡Hecho! Encontrados {len(anuncios_tic_directos)} TIC directos y {len(anuncios_posibles)} posibles.")
     doc.save(nombre_word)
 
 if __name__ == "__main__":
-    rastreador_7_dias_enlaces_directos()
+    rastreador_7_dias_dos_listas()
