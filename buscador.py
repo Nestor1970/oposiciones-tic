@@ -24,8 +24,9 @@ def rastreador_7_dias_definitivo():
     doc.add_heading(f'Boletín de Oposiciones - {hoy.strftime("%d/%m/%Y")}', 0)
     anuncios_tic_directos = {} 
     anuncios_posibles = {}
+    total_llamadas_proxy = 0
     
-    print(f"\n--- 🛰️  BÚSQUEDA TIC + REDES (Modo 2 Listas Inteligentes) ---")
+    print(f"\n--- 🛰️  BÚSQUEDA TIC + REDES ---")
     
     sesion = requests.Session()
     sesion.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36'})
@@ -44,13 +45,10 @@ def rastreador_7_dias_definitivo():
         
         for fuente, url in urls.items():
             try:
-                # DETALLE DE LLAMADA AL PROXY
                 if (fuente.startswith("DOG") or fuente == "BOE") and api_key_proxy:
-                    url_proxy = f"http://api.scraperapi.com?api_key={api_key_proxy}&url={quote(url, safe='')}&render=false"
-                    print(f"  → Llamada Proxy ({fuente}): {url_proxy}")
-                    res = requests.get(url_proxy, timeout=45) 
+                    total_llamadas_proxy += 1
+                    res = requests.get(f"http://api.scraperapi.com?api_key={api_key_proxy}&url={quote(url, safe='')}&render=false", timeout=45) 
                 else:
-                    print(f"  → Petición directa ({fuente}): {url}")
                     res = sesion.get(url, timeout=20)
                 
                 if res.status_code != 200: continue
@@ -58,28 +56,19 @@ def rastreador_7_dias_definitivo():
                 sopa = BeautifulSoup(res.text, 'html.parser')
                 elementos_analizar = []
                 
+                # --- LÓGICA DE EXTRACCIÓN (BOP + Cabecera) ---
                 if fuente == "BOP Coruña":
-                    for anuncio_tag in sopa.find_all('p'):
-                        texto_anuncio = anuncio_tag.get_text(strip=True)
-                        if re.match(r'^\d{4}/\d+', texto_anuncio):
-                            next_node = anuncio_tag.find_next_sibling(['p', 'div'])
-                            link_tag = next_node.find('a', href=True) if next_node else None
-                            if link_tag:
-                                match = re.search(r'(\d{4})/(\d+)', texto_anuncio)
-                                if match:
-                                    año, num = match.group(1), match.group(2).zfill(4)
-                                    u = f"https://bop.dacoruna.gal/bopportal/publicado/{fecha.strftime('%Y/%m/%d')}/{año}_{'0'*6}{num}.pdf"
-                                else:
-                                    u = urljoin("https://bop.dacoruna.gal", link_tag['href']).replace('.html', '.pdf')
-                                municipio = "BOP Coruña"
-                                temp_node = anuncio_tag.find_previous(['p', 'h3', 'div', 'h1'])
-                                while temp_node:
-                                    txt_t = temp_node.get_text(strip=True)
-                                    if txt_t and not re.match(r'^\d{4}/\d+', txt_t) and "PDF" not in txt_t.upper():
-                                        municipio = txt_t
-                                        break
-                                    temp_node = temp_node.find_previous(['p', 'h3', 'div', 'h1'])
-                                elementos_analizar.append((f"🏢 {municipio} | {texto_anuncio}", u))
+                    for item in sopa.find_all(['li', 'p']):
+                        link = item.find('a', href=True)
+                        if link:
+                            u = urljoin(url, link['href'])
+                            texto_item = item.get_text(separator=" ")
+                            municipio = "BOP Coruña"
+                            prev_node = item.find_previous(['h1', 'h2', 'h3', 'p', 'div'])
+                            if prev_node:
+                                municipio = prev_node.get_text(strip=True)
+                            texto_final = f"🏢 {municipio} | {texto_item}"
+                            elementos_analizar.append((texto_final, u))
                 else:
                     for item in sopa.find_all(['li', 'p']):
                         link = item.find('a', href=True)
@@ -89,7 +78,8 @@ def rastreador_7_dias_definitivo():
 
                 for texto, url_final in elementos_analizar:
                     texto_limpio = texto.strip()
-                    if len(texto_limpio) < 15: continue
+                    # LÍMITE REDUCIDO A 15 PARA NO PERDER NADA
+                    if len(texto_limpio) < 15: continue 
                     txt_min = texto_limpio.lower()
                     
                     tiene_it = any(re.search(t, txt_min) for t in terminos_it)
@@ -112,7 +102,7 @@ def rastreador_7_dias_definitivo():
         doc.add_paragraph(f"{d['fuente']} - {d['fecha']}\n{d['texto']}\n🔗 {d['url']}\n" + "-"*30)
         
     doc.save(nombre_word)
-    print(f"\n✅ ¡Hecho! Encontrados {len(anuncios_tic_directos)} TIC directos y {len(anuncios_posibles)} posibles.")
+    print(f"\n✅ ¡Hecho! Encontrados {len(anuncios_tic_directos)} TIC directos y {len(anuncios_posibles)} posibles. (Llamadas Proxy: {total_llamadas_proxy})")
 
 if __name__ == "__main__":
     rastreador_7_dias_definitivo()
