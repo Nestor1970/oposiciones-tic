@@ -17,7 +17,7 @@ def rastreador_7_dias_definitivo():
                    r"\btic\b", r"\bsistemas de información\b", r"\bdixital\b", r"\bdigital\b", r"\bredes\b"]
     terminos_genericos = [r"\bcuerpos y escalas\b", r"\bcorpos e escalas\b", r"\boferta de empleo público\b", 
                           r"\boferta de emprego público\b", r"\boep\b"]
-    accion = ["convoca", "proceso selectivo", "oposición", "libre", "quenda", "prazas", "ingreso", "ferrol",
+    accion = ["convoca", "proceso selectivo", "oposición", "libre", "quenda", "prazas", "ingreso", "plaza",
               "estabilización", "oferta de empleo", "oep", "oferta de emprego", "personal laboral", "funcionario"]
               
     doc = Document()
@@ -40,8 +40,18 @@ def rastreador_7_dias_definitivo():
         urls = {}
         if dia_semana != 6: urls["BOE"] = fecha.strftime("https://www.boe.es/boe/dias/%Y/%m/%d/")
         if dia_semana not in [5, 6]: urls["BOP Coruña"] = f"https://bop.dacoruna.gal/bopportal/cambioBoletin.do?fechaInput={f_str}"
-        urls["DOG Sec 2"] = f"https://www.xunta.gal/diario-oficial-galicia/mostrarContenido.do?ruta=/{fecha.year}/{fecha.strftime('%Y%m%d')}/Secciones2_gl.html"
-        urls["DOG Sec 3"] = f"https://www.xunta.gal/diario-oficial-galicia/mostrarContenido.do?ruta=/{fecha.year}/{fecha.strftime('%Y%m%d')}/Secciones3_gl.html"
+        
+        # LÓGICA INTELIGENTE DOG: Consultar índice
+        url_indice = f"https://www.xunta.gal/diario-oficial-galicia/mostrarContenido.do?ruta=/{fecha.year}/{fecha.strftime('%Y%m%d')}/Indice_gl.html"
+        try:
+            res_indice = requests.get(url_indice, timeout=20)
+            if res_indice.status_code == 200:
+                sopa_indice = BeautifulSoup(res_indice.text, 'html.parser')
+                for link in sopa_indice.find_all('a', href=True):
+                    texto_link = link.get_text(strip=True)
+                    if "IV. Oposiciones" in texto_link or "VI. Anuncios" in texto_link:
+                        urls[f"DOG {texto_link}"] = urljoin(url_indice, link['href'])
+        except: pass
         
         for fuente, url in urls.items():
             try:
@@ -60,44 +70,32 @@ def rastreador_7_dias_definitivo():
                     for item in sopa.find_all(['li', 'p']):
                         link = item.find('a', href=True)
                         if link:
-                            # Captura de ID para construir la URL exacta
                             id_match = re.search(r'(\d{4}_\d+)', link['href'])
-                            if id_match:
-                                id_archivo = id_match.group(1)
-                                # CONSTRUCCIÓN EXACTA SOLICITADA
-                                u = f"https://bop.dacoruna.gal/bopportal/publicado/{fecha.strftime('%Y/%m/%d')}/{id_archivo}.pdf"
-                            else:
-                                u = urljoin(url, link['href']).replace('.html', '.pdf')
+                            id_archivo = id_match.group(1) if id_match else "0000_0000"
+                            u = f"https://bop.dacoruna.gal/bopportal/publicado/{fecha.strftime('%Y/%m/%d')}/{id_archivo}.pdf"
                             
                             texto_item = item.get_text(separator=" ")
                             municipio = "BOP Coruña"
                             prev_node = item.find_previous(['h1', 'h2', 'h3', 'p', 'div'])
-                            if prev_node:
-                                municipio = prev_node.get_text(strip=True)
+                            if prev_node: municipio = prev_node.get_text(strip=True)
                             
-                            texto_final = f"🏢 {municipio} | {texto_item}"
-                            elementos_analizar.append((texto_final, u))
+                            elementos_analizar.append((f"🏢 {municipio} | {texto_item}", u))
                 else:
                     for item in sopa.find_all(['li', 'p']):
                         link = item.find('a', href=True)
                         if link:
-                            u = urljoin(url, link['href'])
-                            elementos_analizar.append((item.get_text(separator=" "), u))
+                            elementos_analizar.append((item.get_text(separator=" "), urljoin(url, link['href'])))
 
                 for texto, url_final in elementos_analizar:
                     texto_limpio = texto.strip()
                     if len(texto_limpio) < 15: continue 
                     txt_min = texto_limpio.lower()
                     
-                    tiene_it = any(re.search(t, txt_min) for t in terminos_it)
-                    tiene_generico = any(re.search(g, txt_min) for g in terminos_genericos)
-                    tiene_accion = any(a in txt_min for a in accion)
-                    
-                    if (tiene_it or tiene_generico) and tiene_accion:
+                    if (any(re.search(t, txt_min) for t in terminos_it) or any(re.search(g, txt_min) for g in terminos_genericos)) and any(a in txt_min for a in accion):
                         datos = {'texto': texto_limpio, 'fuente': fuente, 'fecha': f_str, 'url': url_final}
                         huella = re.sub(r'\W+', '', texto_limpio)[:200]
-                        if tiene_it: anuncios_tic_directos[huella] = datos
-                        elif tiene_generico: anuncios_posibles[huella] = datos
+                        if any(re.search(t, txt_min) for t in terminos_it): anuncios_tic_directos[huella] = datos
+                        else: anuncios_posibles[huella] = datos
             except Exception: continue
 
     doc.add_heading('🎯 Búsqueda Directa (Puestos TIC)', level=1)
