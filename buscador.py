@@ -53,7 +53,7 @@ def rastreador_7_dias_dos_listas():
             urls["BOE"] = fecha.strftime("https://www.boe.es/boe/dias/%Y/%m/%d/")
         if dia_semana not in [5, 6]:
             urls["BOP Coruña"] = f"https://bop.dacoruna.gal/bopportal/cambioBoletin.do?fechaInput={f_str}"
-        urls["DOG"] = f"https://www.xunta.gal/diario-oficial-galicia/mostrarContenido.do?ruta=/{fecha.year}/{fecha.strftime('%Y%m%d')}/Secciones3_gl.html"
+        urls["DOG"] = f"https://www.xunta.gal/diario-oficial-galicia/mostrarContenido.do?ruta=/{fecha.year}/{fecha.strftime('%Y%m%d')}/Secciones2_es.html"
         
         print(f"🔎 Analizando {f_str}...", end="\r")
         
