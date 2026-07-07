@@ -56,17 +56,25 @@ def rastreador_7_dias_definitivo():
                 sopa = BeautifulSoup(res.text, 'html.parser')
                 elementos_analizar = []
                 
-                # --- LÓGICA DE EXTRACCIÓN (BOP + Cabecera) ---
                 if fuente == "BOP Coruña":
                     for item in sopa.find_all(['li', 'p']):
                         link = item.find('a', href=True)
                         if link:
-                            u = urljoin(url, link['href'])
+                            # Captura de ID para construir la URL exacta
+                            id_match = re.search(r'(\d{4}_\d+)', link['href'])
+                            if id_match:
+                                id_archivo = id_match.group(1)
+                                # CONSTRUCCIÓN EXACTA SOLICITADA
+                                u = f"https://bop.dacoruna.gal/bopportal/publicado/{fecha.strftime('%Y/%m/%d')}/{id_archivo}.pdf"
+                            else:
+                                u = urljoin(url, link['href']).replace('.html', '.pdf')
+                            
                             texto_item = item.get_text(separator=" ")
                             municipio = "BOP Coruña"
                             prev_node = item.find_previous(['h1', 'h2', 'h3', 'p', 'div'])
                             if prev_node:
                                 municipio = prev_node.get_text(strip=True)
+                            
                             texto_final = f"🏢 {municipio} | {texto_item}"
                             elementos_analizar.append((texto_final, u))
                 else:
@@ -78,7 +86,6 @@ def rastreador_7_dias_definitivo():
 
                 for texto, url_final in elementos_analizar:
                     texto_limpio = texto.strip()
-                    # LÍMITE REDUCIDO A 15 PARA NO PERDER NADA
                     if len(texto_limpio) < 15: continue 
                     txt_min = texto_limpio.lower()
                     
