@@ -6,19 +6,18 @@ import os
 from docx import Document
 from urllib.parse import quote, urljoin
 
-def rastreador_7_dias_completo():
+def rastreador_7_dias_definitivo():
     directorio = os.path.dirname(os.path.abspath(__file__))
     hoy = datetime.utcnow() + timedelta(hours=2) 
     fecha_hoy_str = hoy.strftime("%d_%m_%Y")
     nombre_word = os.path.join(directorio, f"Oposiciones_{fecha_hoy_str}.docx")
     api_key_proxy = os.environ.get("SCRAPER_API_KEY")
     
-    # Términos originales
     terminos_it = [r"\binformática\b", r"\binformático\b", r"\bprogramador\b", r"\bsoftware\b", 
                    r"\btic\b", r"\bsistemas de información\b", r"\bdixital\b", r"\bdigital\b", r"\bredes\b"]
     terminos_genericos = [r"\bcuerpos y escalas\b", r"\bcorpos e escalas\b", r"\boferta de empleo público\b", 
                           r"\boferta de emprego público\b", r"\boep\b"]
-    accion = ["convoca", "proceso selectivo", "oposición", "libre", "quenda", "prazas", "ingreso", "plazas",
+    accion = ["convoca", "proceso selectivo", "oposición", "libre", "quenda", "prazas", "ingreso", "ferrol",
               "estabilización", "oferta de empleo", "oep", "oferta de emprego", "personal laboral", "funcionario"]
               
     doc = Document()
@@ -36,8 +35,6 @@ def rastreador_7_dias_completo():
         urls = {}
         if dia_semana != 6: urls["BOE"] = fecha.strftime("https://www.boe.es/boe/dias/%Y/%m/%d/")
         if dia_semana not in [5, 6]: urls["BOP Coruña"] = f"https://bop.dacoruna.gal/bopportal/cambioBoletin.do?fechaInput={f_str}"
-        
-        # MEJORA 1: Ambas secciones del DOG
         urls["DOG Sec 2"] = f"https://www.xunta.gal/diario-oficial-galicia/mostrarContenido.do?ruta=/{fecha.year}/{fecha.strftime('%Y%m%d')}/Secciones2_gl.html"
         urls["DOG Sec 3"] = f"https://www.xunta.gal/diario-oficial-galicia/mostrarContenido.do?ruta=/{fecha.year}/{fecha.strftime('%Y%m%d')}/Secciones3_gl.html"
         
@@ -53,16 +50,34 @@ def rastreador_7_dias_completo():
                 sopa = BeautifulSoup(res.text, 'html.parser')
                 elementos_analizar = []
                 
-                # MEJORA 2: BOP con captura de cabeceras
                 if fuente == "BOP Coruña":
-                    for link in sopa.find_all('a', href=True):
-                        if 'publicado' in link['href'] or link['href'].endswith('.pdf'):
-                            u = urljoin("https://bop.dacoruna.gal", link['href']).replace('.html', '.pdf')
-                            cabecera = ""
-                            prev = link.find_previous(['p', 'h3', 'div'])
-                            if prev: cabecera = prev.get_text(strip=True)
-                            texto_anuncio = f"🏢 {cabecera} | {link.get_text(strip=True)}"
-                            elementos_analizar.append((texto_anuncio, u))
+                    for anuncio_tag in sopa.find_all('p'):
+                        texto_anuncio = anuncio_tag.get_text(strip=True)
+                        if re.match(r'^\d{4}/\d+', texto_anuncio):
+                            next_node = anuncio_tag.find_next_sibling(['p', 'div'])
+                            link_tag = next_node.find('a', href=True) if next_node else None
+                            if link_tag:
+                                match = re.search(r'(\d{4})/(\d+)', texto_anuncio)
+                                if match:
+                                    año, num = match.group(1), match.group(2).zfill(4)
+                                    u = f"https://bop.dacoruna.gal/bopportal/publicado/{fecha.strftime('%Y/%m/%d')}/{año}_{'0'*6}{num}.pdf"
+                                else:
+                                    u = urljoin("https://bop.dacoruna.gal", link_tag['href']).replace('.html', '.pdf')
+                                municipio = "BOP Coruña"
+                                temp_node = anuncio_tag.find_previous(['p', 'h3', 'div', 'h1'])
+                                while temp_node:
+                                    txt_t = temp_node.get_text(strip=True)
+                                    if txt_t and not re.match(r'^\d{4}/\d+', txt_t) and "PDF" not in txt_t.upper():
+                                        municipio = txt_t
+                                        break
+                                    temp_node = temp_node.find_previous(['p', 'h3', 'div', 'h1'])
+                                elementos_analizar.append((f"🏢 {municipio} | {texto_anuncio}", u))
+                elif fuente.startswith("DOG"):
+                    for p_tag in sopa.find_all(['p', 'span']):
+                        link = p_tag.find('a', href=True)
+                        if link:
+                            u = urljoin(url, link['href'])
+                            elementos_analizar.append((p_tag.get_text(separator=" "), u))
                 else:
                     for item in sopa.find_all(['li', 'p']):
                         link = item.find('a', href=True)
@@ -72,7 +87,7 @@ def rastreador_7_dias_completo():
 
                 for texto, url_final in elementos_analizar:
                     texto_limpio = texto.strip()
-                    if len(texto_limpio) < 50: continue
+                    if len(texto_limpio) < 15: continue
                     txt_min = texto_limpio.lower()
                     
                     tiene_it = any(re.search(t, txt_min) for t in terminos_it)
@@ -86,7 +101,6 @@ def rastreador_7_dias_completo():
                         elif tiene_generico: anuncios_posibles[huella] = datos
             except Exception: continue
 
-    # Generación Word
     doc.add_heading('🎯 Búsqueda Directa (Puestos TIC)', level=1)
     for d in anuncios_tic_directos.values():
         doc.add_paragraph(f"{d['fuente']} - {d['fecha']}\n{d['texto']}\n🔗 {d['url']}\n" + "-"*30)
@@ -98,4 +112,4 @@ def rastreador_7_dias_completo():
     doc.save(nombre_word)
 
 if __name__ == "__main__":
-    rastreador_7_dias_completo()
+    rastreador_7_dias_definitivo()
