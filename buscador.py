@@ -17,7 +17,7 @@ def rastreador_7_dias_definitivo():
                    r"\btic\b", r"\bsistemas de información\b", r"\bdixital\b", r"\bdigital\b", r"\bredes\b"]
     terminos_genericos = [r"\bcuerpos y escalas\b", r"\bcorpos e escalas\b", r"\boferta de empleo público\b", 
                           r"\boferta de emprego público\b", r"\boep\b"]
-    accion = ["convoca", "proceso selectivo", "oposición", "libre", "quenda", "prazas", "ingreso", "plaza",
+    accion = ["convoca", "proceso selectivo", "oposición", "libre", "quenda", "prazas", "ingreso", "ferrol",
               "estabilización", "oferta de empleo", "oep", "oferta de emprego", "personal laboral", "funcionario"]
               
     doc = Document()
@@ -41,17 +41,26 @@ def rastreador_7_dias_definitivo():
         if dia_semana != 6: urls["BOE"] = fecha.strftime("https://www.boe.es/boe/dias/%Y/%m/%d/")
         if dia_semana not in [5, 6]: urls["BOP Coruña"] = f"https://bop.dacoruna.gal/bopportal/cambioBoletin.do?fechaInput={f_str}"
         
-        # LÓGICA INTELIGENTE DOG: Consultar índice
+        # --- LÓGICA INTELIGENTE DOG CORREGIDA ---
         url_indice = f"https://www.xunta.gal/diario-oficial-galicia/mostrarContenido.do?ruta=/{fecha.year}/{fecha.strftime('%Y%m%d')}/Indice_gl.html"
         try:
-            res_indice = requests.get(url_indice, timeout=20)
+            # CORRECCIÓN 1: Usar proxy también para el índice o GitHub será bloqueado por la Xunta
+            if api_key_proxy:
+                total_llamadas_proxy += 1
+                req_url = f"http://api.scraperapi.com?api_key={api_key_proxy}&url={quote(url_indice, safe='')}&render=false"
+                res_indice = requests.get(req_url, timeout=45)
+            else:
+                res_indice = sesion.get(url_indice, timeout=20)
+                
             if res_indice.status_code == 200:
                 sopa_indice = BeautifulSoup(res_indice.text, 'html.parser')
                 for link in sopa_indice.find_all('a', href=True):
                     texto_link = link.get_text(strip=True)
-                    if "IV. Oposiciones" in texto_link or "VI. Anuncios" in texto_link:
+                    # CORRECCIÓN 2: "Oposic" captura tanto "Oposiciones" (ES) como "Oposicións" (GL)
+                    if "IV. Oposic" in texto_link or "VI. Anuncios" in texto_link:
                         urls[f"DOG {texto_link}"] = urljoin(url_indice, link['href'])
-        except: pass
+        except Exception:
+            pass
         
         for fuente, url in urls.items():
             try:
@@ -66,7 +75,7 @@ def rastreador_7_dias_definitivo():
                 sopa = BeautifulSoup(res.text, 'html.parser')
                 elementos_analizar = []
                 
-                if fuente == "BOP Coruña":
+                if "BOP Coruña" in fuente:
                     for item in sopa.find_all(['li', 'p']):
                         link = item.find('a', href=True)
                         if link:
