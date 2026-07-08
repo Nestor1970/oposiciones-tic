@@ -38,30 +38,18 @@ def rastreador_7_dias_definitivo():
         
         dia_semana = fecha.weekday() 
         urls = {}
-        if dia_semana != 6: urls["BOE"] = fecha.strftime("https://www.boe.es/boe/dias/%Y/%m/%d/")
-        if dia_semana not in [5, 6]: urls["BOP Coruña"] = f"https://bop.dacoruna.gal/bopportal/cambioBoletin.do?fechaInput={f_str}"
         
-        # --- LÓGICA INTELIGENTE DOG CORREGIDA ---
-        url_indice = f"https://www.xunta.gal/diario-oficial-galicia/mostrarContenido.do?ruta=/{fecha.year}/{fecha.strftime('%Y%m%d')}/Indice_gl.html"
-        try:
-            # CORRECCIÓN 1: Usar proxy también para el índice o GitHub será bloqueado por la Xunta
-            if api_key_proxy:
-                total_llamadas_proxy += 1
-                req_url = f"http://api.scraperapi.com?api_key={api_key_proxy}&url={quote(url_indice, safe='')}&render=false"
-                res_indice = requests.get(req_url, timeout=45)
-            else:
-                res_indice = sesion.get(url_indice, timeout=20)
-                
-            if res_indice.status_code == 200:
-                sopa_indice = BeautifulSoup(res_indice.text, 'html.parser')
-                for link in sopa_indice.find_all('a', href=True):
-                    texto_link = link.get_text(strip=True)
-                    # CORRECCIÓN 2: "Oposic" captura tanto "Oposiciones" (ES) como "Oposicións" (GL)
-                    if "IV. Oposic" in texto_link or "VI. Anuncios" in texto_link:
-                        urls[f"DOG {texto_link}"] = urljoin(url_indice, link['href'])
-        except Exception:
-            pass
+        # 1. Configurar BOE y BOP (excluyendo fines de semana donde proceda)
+        if dia_semana != 6: 
+            urls["BOE"] = fecha.strftime("https://www.boe.es/boe/dias/%Y/%m/%d/")
+        if dia_semana not in [5, 6]: 
+            urls["BOP Coruña"] = f"https://bop.dacoruna.gal/bopportal/cambioBoletin.do?fechaInput={f_str}"
         
+        # 2. Configurar DOG (Fuerza Bruta: Secciones de la 1 a la 6)
+        for sec in range(1, 7):
+            urls[f"DOG Sec {sec}"] = f"https://www.xunta.gal/diario-oficial-galicia/mostrarContenido.do?ruta=/{fecha.year}/{fecha.strftime('%Y%m%d')}/Secciones{sec}_gl.html"
+        
+        # 3. Procesar todas las URLs del día
         for fuente, url in urls.items():
             try:
                 if (fuente.startswith("DOG") or fuente == "BOE") and api_key_proxy:
@@ -70,11 +58,13 @@ def rastreador_7_dias_definitivo():
                 else:
                     res = sesion.get(url, timeout=20)
                 
-                if res.status_code != 200: continue
+                if res.status_code != 200: 
+                    continue # Si la sección no existe ese día, simplemente la saltamos
                     
                 sopa = BeautifulSoup(res.text, 'html.parser')
                 elementos_analizar = []
                 
+                # --- EXTRACCIÓN BOP ---
                 if "BOP Coruña" in fuente:
                     for item in sopa.find_all(['li', 'p']):
                         link = item.find('a', href=True)
@@ -89,12 +79,15 @@ def rastreador_7_dias_definitivo():
                             if prev_node: municipio = prev_node.get_text(strip=True)
                             
                             elementos_analizar.append((f"🏢 {municipio} | {texto_item}", u))
+                
+                # --- EXTRACCIÓN DOG Y BOE ---
                 else:
                     for item in sopa.find_all(['li', 'p']):
                         link = item.find('a', href=True)
                         if link:
                             elementos_analizar.append((item.get_text(separator=" "), urljoin(url, link['href'])))
 
+                # --- FILTRADO Y CLASIFICACIÓN ---
                 for texto, url_final in elementos_analizar:
                     texto_limpio = texto.strip()
                     if len(texto_limpio) < 15: continue 
@@ -103,10 +96,14 @@ def rastreador_7_dias_definitivo():
                     if (any(re.search(t, txt_min) for t in terminos_it) or any(re.search(g, txt_min) for g in terminos_genericos)) and any(a in txt_min for a in accion):
                         datos = {'texto': texto_limpio, 'fuente': fuente, 'fecha': f_str, 'url': url_final}
                         huella = re.sub(r'\W+', '', texto_limpio)[:200]
-                        if any(re.search(t, txt_min) for t in terminos_it): anuncios_tic_directos[huella] = datos
-                        else: anuncios_posibles[huella] = datos
-            except Exception: continue
+                        if any(re.search(t, txt_min) for t in terminos_it): 
+                            anuncios_tic_directos[huella] = datos
+                        else: 
+                            anuncios_posibles[huella] = datos
+            except Exception: 
+                continue
 
+    # --- GENERACIÓN DEL DOCUMENTO WORD ---
     doc.add_heading('🎯 Búsqueda Directa (Puestos TIC)', level=1)
     for d in anuncios_tic_directos.values():
         doc.add_paragraph(f"{d['fuente']} - {d['fecha']}\n{d['texto']}\n🔗 {d['url']}\n" + "-"*30)
