@@ -17,7 +17,7 @@ def rastreador_7_dias_definitivo():
                    r"\btic\b", r"\bsistemas de información\b", r"\bdixital\b", r"\bdigital\b", r"\bredes\b"]
     terminos_genericos = [r"\bcuerpos y escalas\b", r"\bcorpos e escalas\b", r"\boferta de empleo público\b", 
                           r"\boferta de emprego público\b", r"\boep\b"]
-    accion = ["convoca", "proceso selectivo", "oposición", "libre", "quenda", "prazas", "ingreso", "ferrol",
+    accion = ["convoca", "proceso selectivo", "oposición", "libre", "quenda", "prazas", "ingreso", "plazas",
               "estabilización", "oferta de empleo", "oep", "oferta de emprego", "personal laboral", "funcionario"]
               
     doc = Document()
@@ -31,7 +31,7 @@ def rastreador_7_dias_definitivo():
     sesion = requests.Session()
     sesion.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36'})
 
-    for i in range(7):
+    for i in range(4):
         fecha = hoy - timedelta(days=i)
         f_str = fecha.strftime("%d/%m/%Y")
         print(f"🔍 Analizando {f_str}...")
@@ -46,7 +46,7 @@ def rastreador_7_dias_definitivo():
             urls["BOP Coruña"] = f"https://bop.dacoruna.gal/bopportal/cambioBoletin.do?fechaInput={f_str}"
         
         # 2. Configurar DOG (Fuerza Bruta: Secciones de la 1 a la 6)
-        for sec in range(1, 7):
+        for sec in range(1, 6):
             urls[f"DOG Sec {sec}"] = f"https://www.xunta.gal/diario-oficial-galicia/mostrarContenido.do?ruta=/{fecha.year}/{fecha.strftime('%Y%m%d')}/Secciones{sec}_gl.html"
         
         # 3. Procesar todas las URLs del día
