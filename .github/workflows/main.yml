@@ -1,40 +1,35 @@
-name: Buscador Diario Oposiciones TIC
+name: Buscador Unificado (TIC + Diputacion)
 
 on:
   schedule:
-    - cron: '17 7 * * 1-6'
-  workflow_dispatch:
+    - cron: '00 8 * * 1-6' # Se ejecuta a las 8:00 AM de Lunes a Sábado
+  workflow_dispatch:      # Permite ejecución manual
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
-    # Parche oficial para el fallo de Node 24 del 16 de junio
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
-
     steps:
       - name: Descargar codigo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Configurar Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.9'
 
       - name: Instalar librerias
         run: |
           python -m pip install --upgrade pip
           pip install requests beautifulsoup4 python-docx lxml
 
-      - name: Ejecutar buscador TIC
+      - name: Ejecutar buscador unificado
         env:
-          # Aquí le pasamos la llave maestra al script de Python
           SCRAPER_API_KEY: ${{ secrets.SCRAPER_API_KEY }}
         run: python buscador.py
 
-      - name: Enviar Email
-        uses: dawidd6/action-send-mail@v4
+      - name: Enviar Email (TIC)
+        if: always()
+        uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
           server_port: 465
@@ -43,6 +38,21 @@ jobs:
           password: ${{ secrets.EMAIL_PASS }}
           subject: "💻 Alerta Oposiciones TIC"
           to: ${{ secrets.EMAIL_USER }}
-          from: "Buscador Oposiciones"
-          body: "Se adjunta el boletín detectado en los últimos días."
-          attachments: "*.docx"
+          from: "Buscador TIC"
+          body: "Se adjunta el boletín con los anuncios TIC encontrados."
+          attachments: "Oposiciones_*.docx"
+
+      - name: Enviar Email (Diputacion)
+        if: always()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.EMAIL_USER }}
+          password: ${{ secrets.EMAIL_PASS }}
+          subject: "🏛️ Alerta Diputación Coruña"
+          to: ${{ secrets.EMAIL_USER }}
+          from: "Buscador Diputación"
+          body: "Se adjunta el boletín con los anuncios encontrados de la Diputación de A Coruña."
+          attachments: "Diputacion_Coruna_*.docx"
