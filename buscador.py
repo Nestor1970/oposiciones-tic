@@ -12,11 +12,15 @@ def rastreador_7_dias_definitivo():
     fecha_hoy_str = hoy.strftime("%d_%m_%Y")
     nombre_word = os.path.join(directorio, f"Oposiciones_{fecha_hoy_str}.docx")
     api_key_proxy = os.environ.get("SCRAPER_API_KEY")
-    
+
     terminos_it = [r"\binformática\b", r"\binformático\b", r"\bprogramador\b", r"\bsoftware\b", 
-                   r"\btic\b", r"\bsistemas de información\b", r"\bdixital\b", r"\bdigital\b", r"\bredes\b"]
+                   r"\btic\b", r"\bsistemas de información\b", r"\bdixital\b", r"\bdigital\b", r"\bredes\b",
+                   r"\btecnoloxía da información\b", r"\btecnología de la información\b"]
+
     terminos_genericos = [r"\bcuerpos y escalas\b", r"\bcorpos e escalas\b", r"\boferta de empleo público\b", 
-                          r"\boferta de emprego público\b", r"\boep\b"]
+                          r"\boferta de emprego público\b", r"\boep\b", r"\bcorpo superior\b", r"\bcuerpo superior\b",
+                          r"\bescala de sistemas\b"]
+    
     accion = ["convoca", "proceso selectivo", "oposición", "libre", "quenda", "prazas", "ingreso", "plazas",
               "estabilización", "oferta de empleo", "oep", "oferta de emprego", "personal laboral", "funcionario"]
               
