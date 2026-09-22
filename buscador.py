@@ -47,7 +47,7 @@ def rastreador_unificado():
     sesion = requests.Session()
     sesion.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36'})
 
-    for i in range(7):
+    for i in range(3):
         fecha = hoy - timedelta(days=i)
         f_str = fecha.strftime("%d/%m/%Y")
         print(f"🔍 Analizando {f_str}...")
